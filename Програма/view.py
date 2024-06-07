@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
 
-class HotelBookingApp:
+class HotelBookingApp: # клас, який відображає графічний інтерфейс програми
     def __init__(self, root, controller):
         self.controller = controller
         self.root = root
@@ -201,8 +201,8 @@ class HotelBookingApp:
     def add_hotel_gui2(self, event):
         name = self.name_entry.get()
         description = self.description_entry.get()
-        total_rooms = int(self.total_room_entry.get())  # Convert to int
-        cost_room = float(self.cost_room_entry.get())  # Convert to float
+        total_rooms = int(self.total_room_entry.get())
+        cost_room = float(self.cost_room_entry.get())
         self.controller.add_hotel(name, description, total_rooms, cost_room)
         self.hotel_listbox.insert(tk.END, name)
 
@@ -264,7 +264,7 @@ class HotelBookingApp:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         except ValueError:
-            messagebox.showerror("Error", "Непрвильний формат. Будь ласка, використовуйте формат: YYYY-MM-DD.")
+            messagebox.showerror("Error", "Неправильний формат. Будь ласка, використовуйте формат: YYYY-MM-DD.")
             return
 
         booking_text = self.booking_text_entry.get()
@@ -285,8 +285,12 @@ class HotelBookingApp:
     def view_client_bookings(self, client):
         self.clear_frame()
         tk.Label(self.main_frame, text="Ваші броні:", font=("Arial", 14)).pack()
-
-        bookings = client.bookings
+        if client.is_admin:
+            bookings = []
+            for booking_clients in self.controller.clients:
+                bookings += booking_clients.bookings
+        else:
+            bookings = client.bookings
         if not bookings:
             tk.Label(self.main_frame, text="У вас немає заброньованих номерів.", font=("Arial", 14)).pack()
         else:
@@ -294,7 +298,9 @@ class HotelBookingApp:
             self.booking_listbox.pack(fill=tk.BOTH, expand=1)
             for booking in bookings:
                 self.booking_listbox.insert(tk.END,
-                                            f"Готель: {booking.hotel.name}, Дата заїзду: {str(booking.start_date)[0:11]}, Дата виїзду: {str(booking.end_date)[0:11]}\n, Опис: {booking.text}")
+                                            f"Готель: {booking.hotel.name}, Дата заїзду: {str(booking.start_date)[0:11]}"
+                                            f", Дата виїзду: {str(booking.end_date)[0:11]}, Опис: {booking.text},"
+                                            f" Користувач: {booking.client.first_name} {booking.client.last_name}" )
 
             tk.Button(self.main_frame, text="Змінити бронь", command=self.edit_booking, font=("Arial", 14)).pack(pady=10)
             tk.Button(self.main_frame, text="Видалити бронь", command=self.delete_booking, font=("Arial", 14)).pack()
@@ -311,19 +317,16 @@ class HotelBookingApp:
         if selected_index:
             selected_index = selected_index[0]
             selected_booking_text = self.booking_listbox.get(selected_index)
-            # Extracting hotel name, start date, end date, and booking text from the selected booking text
             parts = selected_booking_text.split(", ")
             hotel_name = parts[0].split(": ")[1]
             start_date_str = parts[1].split(": ")[1]
             end_date_str = parts[2].split(": ")[1]
             booking_text = parts[3].split(": ")[1]
 
-            # Create a new window for editing booking
             edit_window = tk.Toplevel(self.root)
             edit_window.title("Зміна броні")
             edit_window.geometry("300x300")
 
-            # Entry fields to edit booking information
             tk.Label(edit_window, text="Назва готелю:").grid(row=0, column=0)
             hotel_var = tk.StringVar(edit_window, value=hotel_name)
             tk.Entry(edit_window, textvariable=hotel_var, state="readonly").grid(row=0, column=1)
@@ -340,7 +343,6 @@ class HotelBookingApp:
             booking_text_var = tk.StringVar(edit_window, value=booking_text)
             tk.Entry(edit_window, textvariable=booking_text_var).grid(row=3, column=1)
 
-            # Submit button to save the changes
             tk.Button(edit_window, text="Зберегти зміни", command=lambda: self.save_booking_changes(
                 selected_index, hotel_var.get(), start_date_var.get(), end_date_var.get(), booking_text_var.get())).grid(
                 row=4, column=0, columnspan=2)
@@ -353,23 +355,20 @@ class HotelBookingApp:
 
 
     def save_booking_changes(self, index, hotel_name, start_date, end_date, booking_text):
-        # Update the booking in the client's bookings list
         client = self.controller.logged_in_client
         client.bookings[
             index] = f"Готель: {hotel_name}, Дата заїзду: {start_date}, Дата виїзду: {end_date}, Опис: {booking_text}"
-        # Update the listbox
         self.booking_listbox.delete(index)
         self.booking_listbox.insert(index, client.bookings[index])
+        messagebox.showinfo("Змінення даних", "Дані успішно змінено!")
 
 
     def delete_booking(self):
         selected_index = self.booking_listbox.curselection()
         if selected_index:
             index = selected_index[0]
-            # Delete the booking from the client's bookings list
             client = self.controller.logged_in_client
             del client.bookings[index]
-            # Update the listbox
             self.booking_listbox.delete(index)
 
 
@@ -466,7 +465,7 @@ class HotelBookingApp:
             messagebox.showerror("Видалити клієнта", "Виберіть клієнта для видалення")
             return
         client_str = self.user_listbox.get(selected_index)
-        email = client_str.split('(')[1][:-1]  # Extract the email from the string
+        email = client_str.split('(')[1][:-1]
         self.controller.remove_client(email)
         messagebox.showinfo("Видалити клієнта", "Клієнта видалено успішно!")
         self.update_user_listbox()
@@ -477,7 +476,7 @@ class HotelBookingApp:
             messagebox.showerror("Змінити дані клієнта", "Виберіть клієнта для редагування")
             return
         client_str = self.user_listbox.get(selected_index)
-        email = client_str.split('(')[1][:-1]  # Extract the email from the string
+        email = client_str.split('(')[1][:-1]
         client = self.controller.find_client_by_email(email)
         if not client:
             messagebox.showerror("Змінити дані клієнта", "Клієнта не знайдено")
